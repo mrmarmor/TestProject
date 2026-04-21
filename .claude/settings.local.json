@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(app/src/main/java/com/appstairs/testproject/data/db/MovieDatabase.kt:*)"
+    ],
+    "deny":  [
+      "Bash(rm -rf *)"
+    ]
+  }
+}
