@@ -15,6 +15,9 @@ class MovieViewModel @Inject constructor(private val repository: MovieRepository
     val movies: Flow<PagingData<Movie>> = repository.getMoviesPager()
         .cachedIn(viewModelScope) // cache all movies until viewModel destroyed,
                                   // so rotating will not erase data
+
+    // this is a comment that i want to add to the git, so diff function will understand that it is different
+    // and github action will summarize it as something done between commits.
 }
 
 // =============================================================================
