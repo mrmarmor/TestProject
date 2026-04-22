@@ -1,0 +1,61 @@
+name: Code Diff Summary
+          import os
+          import requests
+
+          with open('diff.txt', 'r', encoding='utf-8') as f:
+              diff = f.read()
+
+          with open('files.txt', 'r', encoding='utf-8') as f:
+              files = f.read()
+
+          prompt = f"""
+You are a senior software engineer.
+Analyze the following git changes.
+
+Return:
+1. Summary
+2. Feature / bug fix description
+3. Files changed and why
+4. Risks
+5. Suggested tests
+
+Changed files:
+{files}
+
+Diff:
+{diff[:12000]}
+"""
+
+          response = requests.post(
+              'https://api.openai.com/v1/chat/completions',
+              headers={
+                  'Authorization': f"Bearer {os.environ['OPENAI_API_KEY']}",
+                  'Content-Type': 'application/json'
+              },
+              json={
+                  'model': 'gpt-4.1-mini',
+                  'messages': [
+                      {'role': 'system', 'content': 'You summarize code changes.'},
+                      {'role': 'user', 'content': prompt}
+                  ]
+              }
+          )
+
+          summary = response.json()['choices'][0]['message']['content']
+
+          with open('summary.txt', 'w', encoding='utf-8') as f:
+              f.write(summary)
+          EOF
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Code Diff Summary - ${{ github.repository }}"
+          to: your@email.com
+          from: GitHub Bot
+          secure: true
+          body: file://summary.txt
