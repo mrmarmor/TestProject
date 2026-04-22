@@ -30,7 +30,10 @@ jobs:
           git diff ${{ github.event.before }} ${{ github.sha }} > diff.txt
           head -n 50 diff.txt || echo "No diff"
 
-      # 👇 כאן הקסם – בלי HEREDOC בכלל
+      # ✅ מה שביקשת – התקנת requests
+      - name: Install dependencies
+        run: pip install requests
+
       - name: Generate summary using Python
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
