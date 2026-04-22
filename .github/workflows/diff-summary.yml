@@ -25,30 +25,35 @@ jobs:
       - name: Extract changed files
         run: |
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} > files.txt
-          cat files.txt
+          cat files.txt || echo "No files"
 
       # 📄 diff מלא
       - name: Extract full diff
         run: |
           git diff ${{ github.event.before }} ${{ github.sha }} > diff.txt
-          head -n 50 diff.txt
+          head -n 50 diff.txt || echo "No diff"
 
-      # 🤖 שליחה ל־LLM
-      - name: Generate summary using OpenAI
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # 🧠 יצירת סקריפט Python בצורה בטוחה
+      - name: Create Python script
         run: |
-          python3 << 'EOF'
-          import os
-          import requests
+          cat << 'EOF' > script.py
+import os
+import requests
 
-          with open('diff.txt', 'r', encoding='utf-8') as f:
-              diff = f.read()
+def read_file(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except:
+        return ""
 
-          with open('files.txt', 'r', encoding='utf-8') as f:
-              files = f.read()
+diff = read_file('diff.txt')
+files = read_file('files.txt')
 
-          prompt = f"""
+if not diff.strip():
+    summary = "No changes detected in diff."
+else:
+    prompt = f"""
 You are a senior software engineer.
 
 Analyze the following git changes.
@@ -67,29 +72,38 @@ Diff:
 {diff[:12000]}
 """
 
-          response = requests.post(
-              'https://api.openai.com/v1/chat/completions',
-              headers={
-                  'Authorization': f"Bearer {os.environ['OPENAI_API_KEY']}",
-                  'Content-Type': 'application/json'
-              },
-              json={
-                  'model': 'gpt-4.1-mini',
-                  'messages': [
-                      {'role': 'system', 'content': 'You summarize code changes.'},
-                      {'role': 'user', 'content': prompt}
-                  ]
-              }
-          )
+    response = requests.post(
+        'https://api.openai.com/v1/chat/completions',
+        headers={
+            'Authorization': f"Bearer {os.environ.get('OPENAI_API_KEY')}",
+            'Content-Type': 'application/json'
+        },
+        json={
+            'model': 'gpt-4.1-mini',
+            'messages': [
+                {'role': 'system', 'content': 'You summarize code changes.'},
+                {'role': 'user', 'content': prompt}
+            ]
+        }
+    )
 
-          print("STATUS:", response.status_code)
-          print("RESPONSE:", response.text)
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
 
-          summary = response.json()['choices'][0]['message']['content']
+    try:
+        summary = response.json()['choices'][0]['message']['content']
+    except:
+        summary = "Failed to parse OpenAI response."
 
-          with open('summary.txt', 'w', encoding='utf-8') as f:
-              f.write(summary)
-          EOF
+with open('summary.txt', 'w', encoding='utf-8') as f:
+    f.write(summary)
+EOF
+
+      # ▶️ הרצת הסקריפט
+      - name: Run summary script
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python3 script.py
 
       # 📧 שליחת מייל
       - name: Send email
