@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -30,72 +30,13 @@ jobs:
           git diff ${{ github.event.before }} ${{ github.sha }} > diff.txt
           head -n 50 diff.txt || echo "No diff"
 
-      # ✅ מה שביקשת – התקנת requests
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install requests
 
-      - name: Generate summary using Python
+      - name: Run summary script
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          python3 -c "
-import os
-import requests
-
-def read_file(path):
-    try:
-        return open(path, 'r', encoding='utf-8').read()
-    except:
-        return ''
-
-diff = read_file('diff.txt')
-files = read_file('files.txt')
-
-if not diff.strip():
-    summary = 'No changes detected.'
-else:
-    prompt = f'''You are a senior software engineer.
-
-Analyze the following git changes.
-
-Return:
-1. Summary
-2. Feature / bug fix description
-3. Files changed and why
-4. Risks
-5. Suggested tests
-
-Changed files:
-{files}
-
-Diff:
-{diff[:12000]}'''
-
-    response = requests.post(
-        'https://api.openai.com/v1/chat/completions',
-        headers={
-            'Authorization': 'Bearer ' + os.environ.get('OPENAI_API_KEY',''),
-            'Content-Type': 'application/json'
-        },
-        json={
-            'model': 'gpt-4.1-mini',
-            'messages': [
-                {'role': 'system', 'content': 'You summarize code changes.'},
-                {'role': 'user', 'content': prompt}
-            ]
-        }
-    )
-
-    print('STATUS:', response.status_code)
-    print('RESPONSE:', response.text)
-
-    try:
-        summary = response.json()['choices'][0]['message']['content']
-    except:
-        summary = 'Failed to parse OpenAI response.'
-
-open('summary.txt', 'w', encoding='utf-8').write(summary)
-"
+        run: python3 script.py
 
       - name: Send email
         uses: dawidd6/action-send-mail@v3
